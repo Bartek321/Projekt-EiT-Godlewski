@@ -18,7 +18,9 @@ def thread():
         pasteScript = 'script.vbs'
         backScript = 'script2.vbs'
         enterScript = 'script3.vbs'
-        dict = { "kasuj" : "", "kropka" : ".", "przecinek" : ",", "wykrzyknik" : "!", "pytajnik" : "?" }    
+        dict = { "kropka" : ".", "przecinek" : ",", "wykrzyknik" : "!", "pytajnik" : "?" } 
+        delete = "kasuj"  
+        newLine = "akapit" 
   
         while True:                             
             while len(Data) <= iterator:            #usypia i czeka na nowe dane
@@ -43,13 +45,13 @@ def thread():
 
             for index, i in enumerate(list):                #petla sprawdza liste i wykonuje odpowiednie operacje dla slow specjalnych
                 list1.append(i)
-                if indeks != len(list) - 1 and len(list) > 2:       #wykonuje sie dla wiecej niz 1 slowa
-                    if i == "kasuj" and indeks == 0:                #kasuje ostatnie slowo z poprzedniej listy
+                if indeks < len(list) - 1 and len(list) > 2:       #wykonuje sie dla wiecej niz 1 slowa
+                    if i == delete and indeks == 0:                #kasuje ostatnie slowo z poprzedniej listy
                         list1.pop(indeks)
                         indeks -= 1
                         for i in range(len(lastList[-2]) + 1):
                             check_output(backScript, shell=True).decode() 
-                    elif i == "kasuj":                              #kasuje poprzednie slowo
+                    elif i == delete:                              #kasuje poprzednie slowo
                         list1.pop(indeks)
                         list1.pop(indeks - 1)
                         indeks -= 2
@@ -57,15 +59,15 @@ def thread():
                     if UP == True and len(list1[indeks]) > 0:   #duza litera po znaku konczacym zdanie
                         list1[indeks] = list1[indeks].replace(list1[indeks][0], list1[indeks][0].upper(), 1)
                         UP = False
-                    
+
                     #usuwa jedno slowo jezeli powtorzone zostaly 2 razy slowa kluczowe
-                    if (i == "kasuj" and list[index + 1] == "kasuj") or (i == "kropka" and list[index + 1] == "kropka") or (i == "przecinek" and list[index + 1] == "przecinek") or (i == "pytajnik" and list[index + 1] == "pytajnik") or (i == "wykrzyknik" and list[index + 1] == "wykrzyknik") or (i == "akapit" and list[index + 1] == "akapit"):
-                        list1.pop(indeks)
+                    if (i == delete and list[index + 1] == delete) or ((i in dict) and (list[index + 1] in dict)):
+                        list[index + 1] = ""
                         indeks -= 1
-                    elif indeks == 0 and (i == "kropka" or i == "przecinek" or i == "wykrzyknik" or i == "pytajnik"):  #wstawia znak interpunkycjny przed poprzednim slowem z poprzedniej listy
+                    elif indeks == 0 and i in dict:  #wstawia znak interpunkycjny przed poprzednim slowem z poprzedniej listy
                         check_output(backScript, shell=True).decode() 
                         list1[indeks] = dict[i]
-                    elif i == "kropka" or i == "przecinek" or i == "wykrzyknik" or i == "pytajnik":     #wstawia znak interpunkycjny przed poprzednim slowem
+                    elif i == "kropka" or i in dict:     #wstawia znak interpunkycjny przed poprzednim slowem
                         list1.pop(indeks)
                         list1[indeks - 1] += dict[i]
                         indeks -= 1
@@ -75,18 +77,20 @@ def thread():
                     indeks += 1
 
             #reaguje na pojedyncze slowo specjalne
-            if (len(list) == 2) and (list[0] == "kasuj" or list[0] == "kropka" or list[0] == "przecinek" or list[0] == "wykrzyknik" or list[0] == "pytajnik"): 
+            if (len(list) == 2) and list[0] in dict: 
                 list1[0] = dict[list[0]]
-            if len(list) == 2 and list[0] == "kasuj":
+            if len(list) == 2 and list[0] == delete:
+                list1[0] = ""
                 for i in range(len(lastList[-2]) + 1):
                     check_output(backScript, shell=True).decode()   
                     
-            if len(list) == 2 and list[0] == "akapit":               #reaguje na slowo akapit, wstawia znak nowej linii
+            if len(list) == 2 and list[0] == newLine:               #reaguje na slowo akapit, wstawia znak nowej linii
                 list1[0] = ""
                 #check_output("echo." + "|clip", shell=True).decode()       #wklejenie nowej linii (nie dziala w wordzie)
                 #check_output(pasteScript, shell=True).decode()      
                 check_output(enterScript, shell=True).decode()            #przycisk "enter"
-        
+            while list1.remove(""):
+                1
             if len(list1) < 2:       
                 list1.append("") 
               
@@ -118,6 +122,10 @@ if __name__ == '__main__':
     data1 = b''
     SIL = 0
     NSI = 0
+    maxSIL = 15
+    recSIL = 120
+    maxNSI = 10
+    minAMP = 10000
     rec = True
     send = True
 
@@ -132,7 +140,7 @@ if __name__ == '__main__':
 
         a = array('h', data)
 
-        if max(a) < 5000:           #sprawdzania, czy aplituda jets na odpowiednim poziomie, jezeli nie to inkrementacja zmiennej
+        if max(a) < minAMP:           #sprawdzania, czy aplituda jets na odpowiednim poziomie, jezeli nie to inkrementacja zmiennej
             SIL += 1
         else:                       #jezeli jest odpowiednia amplituda aktywacja nagrywania i reset zmiennej 
             SIL = 0
@@ -140,10 +148,10 @@ if __name__ == '__main__':
             rec = True
             send = True
 
-        if SIL > 15:                #jezeli przez pewien czs jest cisza - dezaktywacja nagrywania
+        if SIL > maxSIL:                #jezeli przez pewien czs jest cisza - dezaktywacja nagrywania
             rec = False
 
-        if SIL == 120 and send == True and NSI > 10:        #po pewnym czasie ciszy i gdy wielkosc paczki jest odpowiednio duza - wysylanie danych i reset zmiennych
+        if SIL == recSIL and send == True and NSI > maxNSI:        #po pewnym czasie ciszy i gdy wielkosc paczki jest odpowiednio duza - wysylanie danych i reset zmiennych
             SIL = 0
             NSI = 0
             Data.append(data1)
