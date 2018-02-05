@@ -1,21 +1,24 @@
 from clients_engines.audio_provider import get_audio
 from clients_engines.dictation_client import DictationClient
-import time
+from pydub import AudioSegment
 from subprocess import check_output
+from array import array
+import time
 import grpc
 import threading
-from pydub import AudioSegment
 import pyaudio
 import wave
-from array import array
+
 
 def thread():
         lastList = []
         iterator = 1
+        UP = False
 
         pasteScript = 'script.vbs'
         backScript = 'script2.vbs'
-        dict = { "4" : "", "kropka" : ".", "przecinek" : ",", "wykrzyknik" : "!", "pytajnik" : "?" }    
+        enterScript = 'script3.vbs'
+        dict = { "kasuj" : "", "kropka" : ".", "przecinek" : ",", "wykrzyknik" : "!", "pytajnik" : "?" }    
   
         while True:                             
             while len(Data) <= iterator:            #usypia i czeka na nowe dane
@@ -32,7 +35,7 @@ def thread():
 
             results = dc.recognise(method="sync", audio=sound1)         #wyslanie dzwieku do SARMATA
             zmienna = results[0]['transcript']                          #wyodrebnienie samego tlumaczenia
-                
+
             list = zmienna.split()                  #podzial tlumaczenia na pojednycze slowa
             list.append("")
             list1 = []
@@ -50,6 +53,10 @@ def thread():
                         list1.pop(indeks)
                         list1.pop(indeks - 1)
                         indeks -= 2
+
+                    if UP == True and len(list1[indeks]) > 0:   #duza litera po znaku konczacym zdanie
+                        list1[indeks] = list1[indeks].replace(list1[indeks][0], list1[indeks][0].upper(), 1)
+                        UP = False
                     
                     #usuwa jedno slowo jezeli powtorzone zostaly 2 razy slowa kluczowe
                     if (i == "kasuj" and list[index + 1] == "kasuj") or (i == "kropka" and list[index + 1] == "kropka") or (i == "przecinek" and list[index + 1] == "przecinek") or (i == "pytajnik" and list[index + 1] == "pytajnik") or (i == "wykrzyknik" and list[index + 1] == "wykrzyknik") or (i == "akapit" and list[index + 1] == "akapit"):
@@ -62,21 +69,23 @@ def thread():
                         list1.pop(indeks)
                         list1[indeks - 1] += dict[i]
                         indeks -= 1
+                        if i != "przecinek":
+                            UP = True    
                  
                     indeks += 1
 
             #reaguje na pojedyncze slowo specjalne
-            if (len(list) == 2) and (list[0] == "kasuj" or list[0] == "kropka" or list[0] == "przecinek" or list[0] == "wykrzyknik" or list[0] == "pytajnik"):
-                check_output(backScript, shell=True).decode()   
+            if (len(list) == 2) and (list[0] == "kasuj" or list[0] == "kropka" or list[0] == "przecinek" or list[0] == "wykrzyknik" or list[0] == "pytajnik"): 
                 list1[0] = dict[list[0]]
             if len(list) == 2 and list[0] == "kasuj":
-                for i in range(len(lastList[-2])):
+                for i in range(len(lastList[-2]) + 1):
                     check_output(backScript, shell=True).decode()   
                     
             if len(list) == 2 and list[0] == "akapit":               #reaguje na slowo akapit, wstawia znak nowej linii
                 list1[0] = ""
-                check_output("echo." + "" + "|clip", shell=True).decode()
-                check_output(pasteScript, shell=True).decode()        
+                #check_output("echo." + "|clip", shell=True).decode()       #wklejenie nowej linii (nie dziala w wordzie)
+                #check_output(pasteScript, shell=True).decode()      
+                check_output(enterScript, shell=True).decode()            #przycisk "enter"
         
             if len(list1) < 2:       
                 list1.append("") 
@@ -95,7 +104,7 @@ if __name__ == '__main__':
     CHUNK = 1000
     FORMAT = pyaudio.paInt16
     RATE = 44100
-    RECORD_SECONDS = 50
+    RECORD_SECONDS = 500
 
     p = pyaudio.PyAudio()                   #stworzenie streamu do nagrywania z mikrofonu
 
@@ -120,7 +129,6 @@ if __name__ == '__main__':
 
         if rec == True:             #dodawanie fragmentow do paczki, jezeli nagrywanei jest aktywne
             data1 += data
-            print("REC")
 
         a = array('h', data)
 
@@ -129,7 +137,6 @@ if __name__ == '__main__':
         else:                       #jezeli jest odpowiednia amplituda aktywacja nagrywania i reset zmiennej 
             SIL = 0
             NSI += 1
-            print("voice")
             rec = True
             send = True
 
@@ -137,7 +144,6 @@ if __name__ == '__main__':
             rec = False
 
         if SIL == 120 and send == True and NSI > 10:        #po pewnym czasie ciszy i gdy wielkosc paczki jest odpowiednio duza - wysylanie danych i reset zmiennych
-            print("silence")
             SIL = 0
             NSI = 0
             Data.append(data1)
