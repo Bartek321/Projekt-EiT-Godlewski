@@ -27,6 +27,15 @@ def guio():                         #mini gui do dodawania slow kluczowych i pau
             item = a + " - " + b
             if len(item) > 3:
                 app.addListItem("", item)    
+        if button == "Usun":
+            str1 = ''
+            str = "".join(app.getListBox(""))
+            for i in str:
+                if i == " ":
+                    break
+                str1 += i
+            del dict[str1]
+            app.removeListItem("", str)
         else:
             Pause = not Pause
             if Pause == True:
@@ -42,7 +51,7 @@ def guio():                         #mini gui do dodawania slow kluczowych i pau
 
     app.addListBox("", ["kropka - .", "przecinek - ,", "wykrzyknik - !", "pytajnik - ?",])
 
-    app.addButtons(["Dodaj", "Pauza"], press)
+    app.addButtons(["Dodaj", "Usun", "Pauza"], press)
 
     app.go()
 
@@ -126,9 +135,8 @@ def thread():
                 #check_output(pasteScript, shell=True).decode()      
                 check_output(enterScript, shell=True).decode()            #przycisk "enter"
             while list1.remove(""):
-                1
-            if len(list1) < 2:       
-                list1.append("") 
+                1     
+            list1.append("") 
               
             zmienna = ' '.join(list1)                       #laczy listy, zapisuje do schowka i wkleja
             check_output("echo|set /p=" + zmienna + "|clip", shell=True).decode()
